@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Nilai Wali Kelas - SMPN 6 Manokwari</title>
+    <!-- Preload Logo & Background -->
+    <link rel="preload" as="image" href="https://i.ibb.co.com/JWy6dhzM/LOGO-SMP6-1-removebg-preview.png">
+    <link rel="preload" as="image" href="https://i.ibb.co.com/k6GFHZ0q/IMG-20240913-WA0003.jpg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        .bg-custom-container {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: url('https://i.ibb.co.com/k6GFHZ0q/IMG-20240913-WA0003.jpg') no-repeat center center fixed;
+            background-size: cover; filter: blur(4px); transform: scale(1.1);
+        }
+        
+        .bg-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        @media print { 
+            @page {
+                size: A4;
+                margin: 1cm;
+            }
+            .no-print { display: none !important; } 
+            .bg-custom-container, .bg-overlay { display: none !important; }
+            body { background: white !important; padding: 0 !important; color: black !important; }
+            .print-only { display: block !important; }
+            .card-container { border: none !important; box-shadow: none !important; border-radius: 0 !important; overflow: visible !important; }
+            
+            table { 
+                border-collapse: collapse !important; 
+                width: 100% !important; 
+                border: 1px solid black !important;
+                table-layout: fixed;
+            }
+            th, td { 
+                border: 1px solid black !important; 
+                padding: 4px 2px !important; 
+                color: black !important; 
+                font-size: 8.5pt !important;
+                overflow: hidden;
+                word-wrap: break-word;
+            }
+            th { background-color: #f0f0f0 !important; font-weight: bold !important; -webkit-print-color-adjust: exact; }
+            
+            .col-no { width: 30px; }
+            .col-nama { width: auto; }
+            .col-nilai { width: 45px; }
+            .col-rata { width: 55px; }
+            
+            /* Memaksa ganti halaman setelah baris ke-20 agar tanda tangan tidak sendirian */
+            .page-break-split { page-break-after: always; }
+            
+            thead { display: table-header-group; }
+            
+            .signature-wrapper { 
+                page-break-inside: avoid; 
+                margin-top: 20px;
+            }
+        }
+
+        .print-only { display: none; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        img { opacity: 0; transition: opacity 0.3s ease-in; }
+        img.loaded { opacity: 1; }
+    </style>
+</head>
+<body class="bg-slate-900">
+    <div class="bg-custom-container no-print"></div>
+    <div class="bg-overlay no-print"></div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect, useRef } = React;
+        const LOGO_URL = "https://i.ibb.co.com/JWy6dhzM/LOGO-SMP6-1-removebg-preview.png";
+
+        const Icons = {
+            Eye: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
+            Printer: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>,
+            LogOut: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1-2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        };
+
+        const INITIAL_STUDENTS = [
+            { id: 1, name: 'ALFIAN DASSI', nisn: '0133709997', tugas: 0, uh: 0, uas: 0 },
+            { id: 2, name: 'BETO FRANSISCUS XAFERIUS MARINI', nisn: '3133488468', tugas: 0, uh: 0, uas: 0 },
+            { id: 3, name: 'DIONEL CRISNA', nisn: '3129985332', tugas: 0, uh: 0, uas: 0 },
+            { id: 4, name: 'DWYNE MARCHIO CAESARIO HUNILA', nisn: '3132813039', tugas: 0, uh: 0, uas: 0 },
+            { id: 5, name: 'HABEL RONSUMBRE', nisn: '3129792681', tugas: 0, uh: 0, uas: 0 },
+            { id: 6, name: 'IMANUEL ADVENTUS RODRIGO BONEPAY', nisn: '0126453609', tugas: 0, uh: 0, uas: 0 },
+            { id: 7, name: 'INTAN VANEZYA FEBRIYANTI MANDOSIR', nisn: '3138523586', tugas: 0, uh: 0, uas: 0 },
+            { id: 8, name: 'ISABELLA EKA SANJAYA', nisn: '0134870480', tugas: 0, uh: 0, uas: 0 },
+            { id: 9, name: 'JANET KARUNIA NEVALIA ULLO', nisn: '0131508041', tugas: 0, uh: 0, uas: 0 },
+            { id: 10, name: 'KHENSYA ERWANO', nisn: '3127332357', tugas: 0, uh: 0, uas: 0 },
+            { id: 11, name: 'KIJNE KALEB WANMA', nisn: '3139654691', tugas: 0, uh: 0, uas: 0 },
+            { id: 12, name: 'LAMBERTH WAROPEN', nisn: '0118708112', tugas: 0, uh: 0, uas: 0 },
+            { id: 13, name: 'MARIA ALEKSIA MOTA', nisn: '3134038705', tugas: 0, uh: 0, uas: 0 },
+            { id: 14, name: 'MARIA ALFONSA KUKJAKON KINOMBE', nisn: '0115990757', tugas: 0, uh: 0, uas: 0 },
+            { id: 15, name: 'MARLINA INSEN', nisn: '3117879867', tugas: 0, uh: 0, uas: 0 },
+            { id: 16, name: 'MARSEL ANUGRA SAPAN KADANG', nisn: '3134834957', tugas: 0, uh: 0, uas: 0 },
+            { id: 17, name: 'MEKZEN FRITS SIMON RONSUMBRE', nisn: '3121573630', tugas: 0, uh: 0, uas: 0 },
+            { id: 18, name: 'MICHAEL LODIWIK DULE', nisn: '3138019217', tugas: 0, uh: 0, uas: 0 },
+            { id: 19, name: 'MUHAMMAD AL HAADIIH FIQI FIRDAUS', nisn: '3124621027', tugas: 0, uh: 0, uas: 0 },
+            { id: 20, name: 'NUR SIFA JUMADI', nisn: '3122034678', tugas: 0, uh: 0, uas: 0 },
+            { id: 21, name: 'NURUL HIDAYAH', nisn: '0132930192', tugas: 0, uh: 0, uas: 0 },
+            { id: 22, name: 'PUTRI IRAWATI JULISTIAWATI MAABUAT', nisn: '3133222926', tugas: 0, uh: 0, uas: 0 },
+            { id: 23, name: 'RATU CICILIA NUBATONIS', nisn: '0134230770', tugas: 0, uh: 0, uas: 0 },
+            { id: 24, name: 'SIONI YULIANA SAMPOEL', nisn: '3126439728', tugas: 0, uh: 0, uas: 0 },
+            { id: 25, name: 'STEFANI VIOLITA AYUDIA PUTRI', nisn: '0123018581', tugas: 0, uh: 0, uas: 0 },
+            { id: 26, name: 'WIHELMUS WANAR KAMEUBUN', nisn: '0132639711', tugas: 0, uh: 0, uas: 0 },
+            { id: 27, name: 'YOHANES YAKOBUS DIMARA', nisn: '0125286445', tugas: 0, uh: 0, uas: 0 },
+            { id: 28, name: 'ZEVANYA NATASHA KARTINI BINWASEF', nisn: '3125666678', tugas: 0, uh: 0, uas: 0 },
+            { id: 29, name: 'REYHA RAFAEL TUMBLAKA', nisn: '-', tugas: 0, uh: 0, uas: 0 }
+        ];
+
+        function App() {
+            const [userRole, setUserRole] = useState(null); 
+            const [passwordInput, setPasswordInput] = useState('');
+            const [students, setStudents] = useState(() => {
+                const saved = localStorage.getItem('smp6_grades_v1');
+                return saved ? JSON.parse(saved) : INITIAL_STUDENTS;
+            });
+
+            useEffect(() => {
+                localStorage.setItem('smp6_grades_v1', JSON.stringify(students));
+            }, [students]);
+
+            const updateGrade = (id, field, value) => {
+                const val = value === '' ? 0 : Math.min(100, Math.max(0, parseInt(value) || 0));
+                setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: val } : s));
+            };
+
+            if (!userRole) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4">
+                        <div className="max-w-md w-full relative z-10 bg-white/90 backdrop-blur-md rounded-3xl p-8 shadow-2xl">
+                            <div className="text-center mb-6">
+                                <img src={LOGO_URL} className="w-24 h-24 mx-auto mb-4" onLoad={(e) => e.target.classList.add('loaded')} />
+                                <h1 className="text-xl font-black">MASUK SISTEM NILAI</h1>
+                            </div>
+                            <form onSubmit={(e) => { e.preventDefault(); if(passwordInput === '60400173sekolah') setUserRole('admin'); }} className="space-y-4">
+                                <input type="password" placeholder="Password Wali Kelas..." className="w-full px-4 py-3 rounded-xl bg-slate-100 border outline-none" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} />
+                                <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl">MASUK SEBAGAI WALI KELAS</button>
+                                <button type="button" onClick={() => setUserRole('parent')} className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl">HANYA LIHAT NILAI</button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen p-4 md:p-8 relative z-10">
+                    <div className="max-w-5xl mx-auto">
+                        {/* KOP SURAT DIPERBESAR */}
+                        <div className="print-only mb-8 text-center border-b-4 border-double border-black pb-4">
+                            <div className="flex justify-center items-center gap-6">
+                                <img src={LOGO_URL} className="w-24 h-24" onLoad={(e) => e.target.classList.add('loaded')} />
+                                <div>
+                                    <h2 className="text-xl font-bold uppercase tracking-widest">Pemerintah Kabupaten Manokwari</h2>
+                                    <h1 className="text-3xl font-black uppercase leading-tight mb-1">SMP Negeri 6 Manokwari</h1>
+                                    <p className="text-[9pt] font-medium italic">Alamat: Jalan Pertanian Wosi, Manokwari Barat, Kabupaten Manokwari, Papua Barat</p>
+                                    <p className="text-[9pt] font-medium">E-mail: smpn6mkw@gmail.com | Kode Pos: 98312</p>
+                                </div>
+                            </div>
+                            <div className="mt-4 border-t border-black/20 pt-2">
+                                <h3 className="text-lg font-black uppercase tracking-tight">Daftar Nilai Siswa</h3>
+                            </div>
+                        </div>
+
+                        {/* HEADER DASHBOARD */}
+                        <header className="no-print flex justify-between items-center mb-6 bg-white/80 p-6 rounded-2xl shadow-lg">
+                            <div>
+                                <h1 className="text-xl font-black">DATA NILAI KELAS</h1>
+                                <p className="text-xs font-bold text-indigo-600">SMPN 6 MANOKWARI</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => window.print()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
+                                    <Icons.Printer /> CETAK
+                                </button>
+                                <button onClick={() => setUserRole(null)} className="bg-slate-200 p-2 rounded-lg"><Icons.LogOut /></button>
+                            </div>
+                        </header>
+
+                        {/* TABEL NILAI */}
+                        <div className="bg-white rounded-2xl shadow-xl overflow-hidden card-container">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="bg-slate-50">
+                                        <th className="col-no text-center py-3">No</th>
+                                        <th className="col-nama text-left px-4">Nama Lengkap</th>
+                                        <th className="col-nilai text-center">Tugas</th>
+                                        <th className="col-nilai text-center">UH</th>
+                                        <th className="col-nilai text-center">UAS</th>
+                                        <th className="col-rata text-center bg-indigo-50/50">Rata2</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {students.map((s, i) => {
+                                        const avg = ((s.tugas + s.uh + s.uas) / 3).toFixed(1);
+                                        // Baris ke-20 akan memicu ganti halaman saat dicetak
+                                        const isPageSplit = i === 19; 
+                                        
+                                        return (
+                                            <tr key={s.id} className={`border-t border-slate-100 ${isPageSplit ? 'page-break-split' : ''}`}>
+                                                <td className="text-center py-2 text-xs text-slate-400">{i + 1}</td>
+                                                <td className="px-4 py-2">
+                                                    <div className="font-bold text-[9pt] uppercase">{s.name}</div>
+                                                    <div className="text-[7pt] text-slate-400 no-print">NISN: {s.nisn}</div>
+                                                </td>
+                                                <td className="text-center">
+                                                    <input type="number" disabled={userRole !== 'admin'} className="w-8 text-center font-bold no-print" value={s.tugas} onChange={(e) => updateGrade(s.id, 'tugas', e.target.value)} />
+                                                    <span className="print-only">{s.tugas}</span>
+                                                </td>
+                                                <td className="text-center">
+                                                    <input type="number" disabled={userRole !== 'admin'} className="w-8 text-center font-bold no-print" value={s.uh} onChange={(e) => updateGrade(s.id, 'uh', e.target.value)} />
+                                                    <span className="print-only">{s.uh}</span>
+                                                </td>
+                                                <td className="text-center">
+                                                    <input type="number" disabled={userRole !== 'admin'} className="w-8 text-center font-bold no-print" value={s.uas} onChange={(e) => updateGrade(s.id, 'uas', e.target.value)} />
+                                                    <span className="print-only">{s.uas}</span>
+                                                </td>
+                                                <td className="text-center font-black text-indigo-600 bg-indigo-50/20">{avg}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* TANDA TANGAN */}
+                        <div className="print-only signature-wrapper flex justify-end mt-8 mr-10">
+                            <div className="text-center">
+                                <p className="text-xs">Manokwari, {new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' }).format(new Date())}</p>
+                                <p className="font-bold text-xs mb-16">Wali Kelas,</p>
+                                <div className="border-b border-black w-48 mx-auto font-bold uppercase text-xs">____________________</div>
+                                <p className="text-[8pt] mt-1">NIP. ........................................</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
